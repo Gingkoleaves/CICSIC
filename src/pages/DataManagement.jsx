@@ -11,7 +11,12 @@ import {
   Typography,
   Tag,
   Card,
-  Tabs,
+  Upload,
+  message,
+  Divider,
+  Progress,
+  Row,
+  Col,
 } from "antd";
 import {
   SearchOutlined,
@@ -19,13 +24,30 @@ import {
   EditOutlined,
   DeleteOutlined,
   ExclamationCircleOutlined,
+  UploadOutlined,
+  InboxOutlined,
+  FileTextOutlined,
+  FileImageOutlined,
+  FileDoneOutlined,
 } from "@ant-design/icons";
 
 const { Title, Paragraph } = Typography;
-const { TabPane } = Tabs;
+const { Dragger } = Upload;
 
 const DataManagement = () => {
   const [form] = Form.useForm();
+  const [uploadForm] = Form.useForm();
+  const [uploadModalVisible, setUploadModalVisible] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState({
+    case: [],
+    text: [],
+    image: [],
+  });
+  const [uploadProgress, setUploadProgress] = useState({
+    case: 0,
+    text: 0,
+    image: 0,
+  });
   const [dataSource, setDataSource] = useState([
     {
       key: "1",
@@ -287,6 +309,59 @@ const DataManagement = () => {
     setIsModalVisible(false);
   };
 
+  // 处理文件上传
+  const handleFileUpload = (info, type) => {
+    const { fileList } = info;
+    setUploadingFiles((prev) => ({
+      ...prev,
+      [type]: fileList,
+    }));
+
+    // 模拟上传进度
+    if (fileList.length > 0) {
+      let progress = 0;
+      const timer = setInterval(() => {
+        progress += 10;
+        if (progress > 100) {
+          clearInterval(timer);
+          message.success(
+            `${
+              type === "case" ? "病例" : type === "text" ? "文本" : "影像"
+            }数据上传完成`
+          );
+          setUploadProgress((prev) => ({
+            ...prev,
+            [type]: 0,
+          }));
+          return;
+        }
+        setUploadProgress((prev) => ({
+          ...prev,
+          [type]: progress,
+        }));
+      }, 300);
+    }
+  };
+
+  // 处理批量上传
+  const handleBatchUpload = () => {
+    setUploadModalVisible(true);
+  };
+
+  const handleUploadModalOk = () => {
+    uploadForm.validateFields().then((values) => {
+      // 这里可以处理上传逻辑
+      message.success("数据上传成功");
+      setUploadModalVisible(false);
+      uploadForm.resetFields();
+      setUploadingFiles({
+        case: [],
+        text: [],
+        image: [],
+      });
+    });
+  };
+
   return (
     <div>
       <Title level={2}>医疗数据管理</Title>
@@ -294,38 +369,124 @@ const DataManagement = () => {
         对医疗数据进行标准化处理和管理，支持数据的增加、修改、删除和查询功能。
       </Paragraph>
 
-      <Tabs defaultActiveKey="1">
-        <TabPane tab="病例数据" key="1">
-          <Card>
-            <div style={{ marginBottom: 16 }}>
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAddNew}
-              >
-                添加新病例
-              </Button>
-            </div>
+      <Card>
+        <div style={{ marginBottom: 16 }}>
+          <Button icon={<UploadOutlined />} onClick={handleBatchUpload}>
+            批量导入数据
+          </Button>
+        </div>
+        <div
+          style={{
+            padding: "12px 24px",
+            background: "#fffbe6",
+            border: "1px solid #ffe58f",
+            borderRadius: "4px",
+            marginBottom: "16px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <ExclamationCircleOutlined
+            style={{ color: "#faad14", fontSize: "16px" }}
+          />
+          <span>
+            注意相同病人的病例数据、文本数据、影像数据应当具有相同的文件名，方便匹配
+          </span>
+        </div>
 
-            <Table
-              columns={columns}
-              dataSource={dataSource}
-              pagination={{ pageSize: 10 }}
-              bordered
-              scroll={{ x: "max-content" }}
-            />
-          </Card>
-        </TabPane>
+        <Table
+          columns={columns}
+          dataSource={dataSource}
+          pagination={{ pageSize: 10 }}
+          bordered
+          scroll={{ x: "max-content" }}
+        />
+      </Card>
 
-        <TabPane tab="影像数据" key="2">
-          <Card>
-            <div style={{ textAlign: "center", padding: "20px 0" }}>
-              <Title level={4}>影像数据管理功能正在开发中</Title>
-              <Paragraph>此模块将支持医学影像的上传、标注和管理功能</Paragraph>
-            </div>
-          </Card>
-        </TabPane>
-      </Tabs>
+      {/* 批量上传模态框 */}
+      <Modal
+        title="批量导入数据"
+        visible={uploadModalVisible}
+        onOk={handleUploadModalOk}
+        onCancel={() => {
+          setUploadModalVisible(false);
+          uploadForm.resetFields();
+          setUploadingFiles({
+            case: [],
+            text: [],
+            image: [],
+          });
+        }}
+        width={800}
+        okText="开始上传"
+        cancelText="取消"
+      >
+        <Form form={uploadForm} layout="vertical">
+          <Row gutter={[16, 16]}>
+            <Col span={24}>
+              <Card title="病例数据" size="small">
+                <Upload
+                  multiple
+                  accept=".xlsx,.csv"
+                  fileList={uploadingFiles.case}
+                  onChange={(info) => handleFileUpload(info, "case")}
+                  beforeUpload={() => false}
+                >
+                  <Button icon={<FileDoneOutlined />}>选择病例文件</Button>
+                </Upload>
+                {uploadProgress.case > 0 && (
+                  <Progress
+                    percent={uploadProgress.case}
+                    size="small"
+                    style={{ marginTop: 8 }}
+                  />
+                )}
+              </Card>
+            </Col>
+            <Col span={24}>
+              <Card title="文本数据" size="small">
+                <Upload
+                  multiple
+                  accept=".txt,.csv,.xlsx"
+                  fileList={uploadingFiles.text}
+                  onChange={(info) => handleFileUpload(info, "text")}
+                  beforeUpload={() => false}
+                >
+                  <Button icon={<FileTextOutlined />}>选择文本文件</Button>
+                </Upload>
+                {uploadProgress.text > 0 && (
+                  <Progress
+                    percent={uploadProgress.text}
+                    size="small"
+                    style={{ marginTop: 8 }}
+                  />
+                )}
+              </Card>
+            </Col>
+            <Col span={24}>
+              <Card title="影像数据" size="small">
+                <Upload
+                  multiple
+                  accept=".dcm"
+                  fileList={uploadingFiles.image}
+                  onChange={(info) => handleFileUpload(info, "image")}
+                  beforeUpload={() => false}
+                >
+                  <Button icon={<FileImageOutlined />}>选择影像文件</Button>
+                </Upload>
+                {uploadProgress.image > 0 && (
+                  <Progress
+                    percent={uploadProgress.image}
+                    size="small"
+                    style={{ marginTop: 8 }}
+                  />
+                )}
+              </Card>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
 
       {/* 添加/编辑记录的模态框 */}
       <Modal

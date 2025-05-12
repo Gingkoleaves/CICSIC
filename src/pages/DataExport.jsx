@@ -15,12 +15,18 @@ import {
   Row,
   Col,
   Tag,
+  Slider,
+  Input,
+  Tooltip,
 } from "antd";
 import {
   DownloadOutlined,
   FileExcelOutlined,
   FileTextOutlined,
   FilePdfOutlined,
+  CloudDownloadOutlined,
+  SettingOutlined,
+  QuestionCircleOutlined,
 } from "@ant-design/icons";
 import { saveAs } from "file-saver";
 
@@ -30,6 +36,38 @@ const { Option } = Select;
 
 const DataExport = () => {
   const [form] = Form.useForm();
+  const [modelForm] = Form.useForm();
+  const [modelLoading, setModelLoading] = useState(false);
+
+  // 模拟模型数据
+  const modelList = [
+    {
+      key: "1",
+      name: "肺癌分类模型V1",
+      type: "分类",
+      accuracy: "89%",
+      updateTime: "2023-12-01",
+      size: "256MB",
+    },
+    {
+      key: "2",
+      name: "肿瘤预测模型V2",
+      type: "预测",
+      accuracy: "92%",
+      updateTime: "2023-12-15",
+      size: "512MB",
+    },
+    {
+      key: "3",
+      name: "特征提取模型V3",
+      type: "特征提取",
+      accuracy: "92%",
+      updateTime: "2023-12-15",
+      size: "512MB",
+    },
+  ];
+
+  const [selectedModel, setSelectedModel] = useState(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -217,10 +255,131 @@ const DataExport = () => {
     <div>
       <Title level={2}>数据导出下载</Title>
       <Paragraph>
-        选择需要导出的医疗数据记录，并指定导出格式和内容选项。
+        选择需要导出的医疗数据记录和模型，并指定导出格式和内容选项。
       </Paragraph>
 
-      <Card title="导出选项" style={{ marginBottom: 16 }}>
+      <Card title="模型导出" style={{ marginBottom: 16 }}>
+        <Form
+          form={modelForm}
+          layout="vertical"
+          onFinish={(values) => {
+            setModelLoading(true);
+            // 模拟导出过程
+            setTimeout(() => {
+              message.success("模型导出成功");
+              setModelLoading(false);
+            }, 2000);
+          }}
+        >
+          <Row gutter={24}>
+            <Col span={12}>
+              <Form.Item
+                name="model"
+                label="选择模型"
+                rules={[{ required: true, message: "请选择要导出的模型" }]}
+              >
+                <Select
+                  placeholder="选择要导出的模型"
+                  onChange={(value) => {
+                    setSelectedModel(modelList.find((m) => m.key === value));
+                  }}
+                >
+                  {modelList.map((model) => (
+                    <Select.Option key={model.key} value={model.key}>
+                      {model.name} ({model.type})
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              {selectedModel && (
+                <Card size="small" style={{ marginBottom: 16 }}>
+                  <p>
+                    <strong>准确率：</strong>
+                    {selectedModel.accuracy}
+                  </p>
+                  <p>
+                    <strong>更新时间：</strong>
+                    {selectedModel.updateTime}
+                  </p>
+                  <p>
+                    <strong>模型大小：</strong>
+                    {selectedModel.size}
+                  </p>
+                </Card>
+              )}
+            </Col>
+
+            <Col span={12}>
+              <Form.Item
+                name="format"
+                label="导出格式"
+                rules={[{ required: true, message: "请选择导出格式" }]}
+                initialValue="pytorch"
+              >
+                <Radio.Group>
+                  <Space direction="vertical">
+                    <Radio value="pytorch">PyTorch格式 (.pth)</Radio>
+                    <Radio value="onnx">ONNX格式 (.onnx)</Radio>
+                    <Radio value="tensorflow">TensorFlow格式 (.h5)</Radio>
+                  </Space>
+                </Radio.Group>
+              </Form.Item>
+
+              <Form.Item
+                label={
+                  <span>
+                    微调参数配置
+                    <Tooltip title="配置模型微调的相关参数">
+                      <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+                    </Tooltip>
+                  </span>
+                }
+              >
+                <Form.Item name="learning_rate" label="学习率">
+                  <Slider
+                    min={0.0001}
+                    max={0.01}
+                    step={0.0001}
+                    defaultValue={0.001}
+                    marks={{
+                      0.0001: "0.0001",
+                      0.001: "0.001",
+                      0.01: "0.01",
+                    }}
+                  />
+                </Form.Item>
+
+                <Form.Item name="epochs" label="训练轮数">
+                  <Input type="number" min={1} max={100} defaultValue={10} />
+                </Form.Item>
+
+                <Form.Item name="batch_size" label="批次大小">
+                  <Select defaultValue={32}>
+                    <Select.Option value={16}>16</Select.Option>
+                    <Select.Option value={32}>32</Select.Option>
+                    <Select.Option value={64}>64</Select.Option>
+                    <Select.Option value={128}>128</Select.Option>
+                  </Select>
+                </Form.Item>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              icon={<CloudDownloadOutlined />}
+              loading={modelLoading}
+            >
+              导出模型
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+
+      <Card title="数据导出" style={{ marginBottom: 16 }}>
         <Form
           form={form}
           layout="vertical"
